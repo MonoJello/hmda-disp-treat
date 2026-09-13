@@ -1,0 +1,16 @@
+# data folder 
+data/*
+!data/.gitkeep
+
+# Jupyter checkpoint files (anywhere)
+**/.ipynb_checkpoints/
+
+# Python cache folders (anywhere)
+**/__pycache__/
+
+# Compiled Python bytecode (anywhere)
+**/*.pyc
+**/*.pyo
+
+# Pytest cache (anywhere)
+**/.pytest_cache/
