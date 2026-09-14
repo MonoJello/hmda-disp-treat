@@ -6,7 +6,10 @@ from .model import (
     forward_select_auc, 
     plot_logit_marginal_effect,
     corr_crit,
-    find_separation_variables
+    find_separation_variables,
+    make_match_pair,
+    ols_dummy_run,
+    logistic_woe_run
 )
 
 from .results import(

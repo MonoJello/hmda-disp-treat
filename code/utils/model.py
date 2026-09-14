@@ -2,6 +2,249 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
+def logistic_woe_run(df_tmp,group_i):
+
+    from utils import model as mod
+    import statsmodels.api as sm
+
+    # check separtion and remove those columns
+    flagged_variables = mod.find_separation_variables(
+        df=df_tmp,
+        target="denied",
+        print_results=False,
+        check_near_separation=True
+    )
+
+    df_tmp.drop(columns = flagged_variables, inplace = True)
+
+
+    #############create woe
+    import toad
+
+    # Ensure object columns are clean strings
+    object_cols = df_tmp.select_dtypes(include=["object", "string"]).columns
+
+    for col in object_cols:
+        df_tmp[col] = df_tmp[col].astype("string").fillna("__MISSING__")
+
+
+
+    # Create the combiner
+    combiner = toad.transform.Combiner()
+
+    # Fit bins 
+    combiner.fit(
+        df_tmp,
+        y='denied',
+        method="chi",
+        min_samples=0.05,
+        exclude= [group_i]   #['denied']
+    )
+
+    # Apply bin rules
+    df_tmp_bin = combiner.transform(df_tmp)
+
+    # convert bins to woe 
+    woe_transformer = toad.transform.WOETransformer()
+
+    df_tmp_woe = woe_transformer.fit_transform(
+        df_tmp_bin,
+        df_tmp_bin['denied'],
+        exclude=['denied',group_i]
+    )
+
+
+    ####### assign x and y data
+    y = df_tmp_woe["denied"]
+
+    # drop columns with single value. will end up being things like indicator for segment
+    df_tmp_woe = df_tmp_woe.loc[:, df_tmp_woe.nunique(dropna=False) > 1]
+
+    # reorder columns
+    col_order = df_tmp_woe.columns.tolist()
+    col_order.remove(group_i)
+    df_tmp_woe = df_tmp_woe[[group_i] + col_order]
+
+    X = sm.add_constant(df_tmp_woe.drop(columns='denied'))
+
+    model = sm.Logit(y, X)
+    result = model.fit()
+
+    print(result.summary())
+
+    return result
+
+def ols_dummy_run(df_tmp,group_i):
+    import numpy as np
+    import pandas as pd
+    import statsmodels.api as sm
+
+
+    # df_tmp.info()
+
+    # drop denied
+    df_tmp.drop(columns=['action_taken'], inplace= True)
+
+    # check unique values in characaters. we cant have too many and end up losing dfs
+
+    def remove_high_cardinality_text_columns(df, max_cnt):
+        """
+        Remove object and string columns with more than max_cnt
+        unique values.
+
+        Returns:
+            cleaned_df, unique_counts, removed_columns
+        """
+        text_cols = df.select_dtypes(
+            include=["object", "str"]
+        ).columns
+
+        unique_counts = df[text_cols].nunique()
+
+        removed_columns = unique_counts[
+            unique_counts > max_cnt
+        ].index.tolist()
+
+        cleaned_df = df.drop(columns=removed_columns)
+
+        return cleaned_df, unique_counts, removed_columns
+
+
+    df_tmp, counts, removed = remove_high_cardinality_text_columns(
+        df_tmp,
+        max_cnt=20
+    )
+
+    # print(counts)
+    print("Removed columns:", removed)
+
+
+
+    # create bins for numerics
+
+
+    import pandas as pd
+
+    def qcut_numeric_columns(df, n_bins=5, exclude_cols=None):
+        df = df.copy()
+
+        if exclude_cols is None:
+            exclude_cols = []
+
+        numeric_cols = [
+            col for col in df.select_dtypes(include="number").columns
+            if col not in exclude_cols
+        ]
+
+        for col in numeric_cols:
+            df[col] = (
+                pd.qcut(
+                    df[col],
+                    q=n_bins,
+                    labels=False,
+                    duplicates="drop"
+                )
+                .add(1)
+                .astype("object")
+                .fillna("missing")
+            )
+
+        return df
+
+
+    df_tmp = qcut_numeric_columns(
+        df_tmp,
+        n_bins=5,
+        exclude_cols=["interest_rate", group_i]
+    )
+
+
+
+    # df_tmp.head()
+
+    # df_tmp.info()
+
+
+
+    # make dummy vars
+
+    df_tmp = pd.get_dummies(
+        df_tmp,
+        columns=df_tmp.select_dtypes(exclude="number").columns,
+        drop_first=True,
+        dtype=int
+    )
+
+    df_tmp.shape
+
+    ####### assign x and y data
+    y = df_tmp["interest_rate"]
+
+    # drop columns with single value. will end up being things like indicator for segment
+    df_tmp = df_tmp.loc[:, df_tmp.nunique(dropna=False) > 1]
+
+
+
+
+
+    # reorder columns
+    col_order = df_tmp.columns.tolist()
+    col_order.remove(group_i)
+    df_tmp = df_tmp[[group_i] + col_order]
+
+    X = sm.add_constant(df_tmp.drop(columns='interest_rate'))
+
+
+    # Duplicate columns
+    duplicate_cols = X.columns[X.T.duplicated()].tolist()
+    print("Duplicate columns:", duplicate_cols)
+
+    # Constant columns
+    constant_cols = X.columns[X.nunique() <= 1].tolist()
+    print("Constant columns:", constant_cols)
+
+    # Matrix rank
+    print("Number of columns:", X.shape[1])
+    print("Matrix rank:", np.linalg.matrix_rank(X.to_numpy()))
+
+    # do if duplicates then drop them
+
+    if len(duplicate_cols) > 0:
+        X = X.drop(columns=constant_cols + duplicate_cols)
+
+
+    # drop high corr
+
+    import numpy as np
+
+    corr = X.corr().abs()
+
+    upper = corr.where(
+        np.triu(np.ones(corr.shape), k=1).astype(bool)
+    )
+
+    to_drop = [
+        column
+        for column in upper.columns
+        if any(upper[column] > 0.95)
+    ]
+
+    X = X.drop(columns=to_drop)
+
+    print("Dropped columns:", to_drop)
+
+
+
+
+
+
+    model = sm.OLS(y, X)
+    result = model.fit()
+
+    # print(result.summary())
+
+    return result
+
 def find_separation_variables(
     df,
     target,
@@ -226,6 +469,67 @@ def find_separation_variables(
                         print(bins)
 
     return flagged_variables
+
+def make_match_pair(df_tmp, target_to_exclude,group_i):
+
+    from psmpy import PsmPy
+    from psmpy.functions import cohenD
+    # from psmpy.plotting import *
+
+    # redo this but wit the pre woe data. need to redo woe before matched pair reg
+    # df_tmp
+    # df_tmp_woe
+
+
+    # df_tmp_woe["row_id"] = df_tmp_woe.index
+    df_tmp["row_id"] = df_tmp.index
+
+    # df_tmp.head()
+
+    # need to make dummies
+    df_tmp_4psa = df_tmp
+
+
+
+    exclude = [target_to_exclude, group_i, 'row_id']
+
+    df_tmp_4psa = pd.concat(
+        [
+            df_tmp_4psa[exclude],
+            pd.get_dummies(df_tmp_4psa.drop(columns=exclude), dtype=int)
+        ],
+        axis=1
+    )
+
+
+
+
+    # df_tmp_4psa.info()
+
+    missing_columns = df_tmp_4psa.columns[df_tmp_4psa.isna().any()].tolist()
+    missing_columns
+
+    # target_to_exclude + missing_columns
+
+
+
+    # psm = PsmPy(df_tmp_woe, treatment=group_i, indx='row_id', exclude = ['denied'])
+    psm = PsmPy(df_tmp_4psa, treatment=group_i, indx='row_id', exclude = [target_to_exclude] + missing_columns)
+
+    psm.logistic_ps(balance = True)
+
+    psm.kdtree_matched(matcher='propensity_logit', replacement=False, caliper=None, drop_unmatched=True)
+
+    # psm.df_matched
+
+    # get unbinned attributes 
+    # df_tmp_psa = pd.concat([], axis=1)
+    df_tmp_psa = pd.DataFrame(psm.df_matched['row_id']).merge(df_tmp, on="row_id", how="left")
+    df_tmp_psa.drop(columns='row_id', inplace = True)
+
+    # df_tmp_psa.head()
+
+    return df_tmp_psa
 
 def corr_crit(corr_tmp, thresh):
 
