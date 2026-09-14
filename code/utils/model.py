@@ -2,6 +2,231 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
+def find_separation_variables(
+    df,
+    target,
+    print_results=True,
+    check_near_separation=True,
+    n_numeric_bins=10
+):
+    """
+    Find variables that may cause complete or near separation
+    in a binary logistic-regression model.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        Input data.
+
+    target : str
+        Binary target column containing exactly two classes.
+
+    print_results : bool, default=True
+        Whether to print details about flagged variables.
+
+    check_near_separation : bool, default=True
+        For numeric variables, also flag bins with a target rate
+        of exactly 0 or 1.
+
+    n_numeric_bins : int, default=10
+        Number of quantile bins used when checking near separation.
+
+    Returns
+    -------
+    flagged_variables : list
+        List of variable names that may have separation.
+    """
+
+    import numpy as np
+    import pandas as pd
+
+
+    if target not in df.columns:
+        raise ValueError(f"Target column '{target}' was not found.")
+
+    target_values = df[target].dropna().unique()
+
+    if len(target_values) != 2:
+        raise ValueError(
+            f"'{target}' must contain exactly two classes. "
+            f"Found: {target_values}"
+        )
+
+    flagged_variables = []
+    details = {}
+
+    # Identify variable types
+    categorical_cols = df.select_dtypes(
+        include=["object", "string", "category", "bool"]
+    ).columns.tolist()
+
+    numeric_cols = df.select_dtypes(
+        include=["number"]
+    ).columns.tolist()
+
+    categorical_cols = [
+        col for col in categorical_cols
+        if col != target
+    ]
+
+    numeric_cols = [
+        col for col in numeric_cols
+        if col != target
+    ]
+
+    # ---------------------------------------------------------
+    # Check categorical variables
+    # ---------------------------------------------------------
+    for col in categorical_cols:
+        temp = df[[col, target]].copy()
+
+        # Treat missing values as their own category
+        temp[col] = temp[col].astype("string").fillna("__MISSING__")
+
+        counts = pd.crosstab(temp[col], temp[target])
+
+        # Make sure both target classes are represented as columns
+        for target_class in target_values:
+            if target_class not in counts.columns:
+                counts[target_class] = 0
+
+        counts = counts[list(target_values)]
+
+        # A level containing only one target class is separated
+        separated_levels = counts.index[
+            counts.min(axis=1) == 0
+        ].tolist()
+
+        if separated_levels:
+            if col not in flagged_variables:
+                flagged_variables.append(col)
+
+            details[col] = {
+                "type": "categorical",
+                "reason": "One or more levels contain only one target class",
+                "levels": separated_levels,
+                "counts": counts.loc[separated_levels]
+            }
+
+    # ---------------------------------------------------------
+    # Check numeric variables
+    # ---------------------------------------------------------
+    for col in numeric_cols:
+        temp = df[[col, target]].dropna().sort_values(col)
+
+        x = temp[col].to_numpy()
+        y = temp[target].to_numpy()
+
+        # Need at least two distinct values
+        if len(np.unique(x)) < 2:
+            continue
+
+        # Check every possible cutoff between distinct values
+        candidate_positions = np.where(np.diff(x) != 0)[0]
+        exact_cutoffs = []
+
+        for position in candidate_positions:
+            cutoff = (x[position] + x[position + 1]) / 2
+
+            lower_values = y[x <= cutoff]
+            upper_values = y[x > cutoff]
+
+            # Perfect separation if each side contains one class only
+            if (
+                len(np.unique(lower_values)) == 1
+                and len(np.unique(upper_values)) == 1
+                and lower_values[0] != upper_values[0]
+            ):
+                exact_cutoffs.append(cutoff)
+
+        near_separation_bins = None
+
+        # Optional check for bins with event rate exactly 0 or 1
+        if check_near_separation:
+            try:
+                temp = temp.copy()
+                temp["bin"] = pd.qcut(
+                    temp[col],
+                    q=n_numeric_bins,
+                    duplicates="drop"
+                )
+
+                grouped = temp.groupby(
+                    "bin",
+                    observed=False
+                )[target].agg(
+                    count="size",
+                    target_rate="mean"
+                )
+
+                near_separation_bins = grouped[
+                    (grouped["target_rate"] == 0) |
+                    (grouped["target_rate"] == 1)
+                ]
+
+            except ValueError:
+                near_separation_bins = None
+
+        has_near_separation = (
+            near_separation_bins is not None
+            and not near_separation_bins.empty
+        )
+
+        if exact_cutoffs or has_near_separation:
+            flagged_variables.append(col)
+
+            details[col] = {
+                "type": "numeric",
+                "exact_separation_cutoffs": exact_cutoffs,
+                "near_separation_bins": near_separation_bins
+            }
+
+    # ---------------------------------------------------------
+    # Optional printing
+    # ---------------------------------------------------------
+    if print_results:
+        if not flagged_variables:
+            print("No separation variables were found.")
+        else:
+            print("Variables with possible separation:")
+
+            for col in flagged_variables:
+                print(f"\n{col}")
+
+                variable_details = details[col]
+
+                if variable_details["type"] == "categorical":
+                    print(
+                        "  Reason:",
+                        variable_details["reason"]
+                    )
+                    print(
+                        "  Levels:",
+                        variable_details["levels"]
+                    )
+                    print(variable_details["counts"])
+
+                elif variable_details["type"] == "numeric":
+                    cutoffs = variable_details[
+                        "exact_separation_cutoffs"
+                    ]
+
+                    if cutoffs:
+                        print(
+                            "  Exact separation cutoff(s):",
+                            cutoffs
+                        )
+
+                    bins = variable_details[
+                        "near_separation_bins"
+                    ]
+
+                    if bins is not None and not bins.empty:
+                        print("  Bins with target rate 0 or 1:")
+                        print(bins)
+
+    return flagged_variables
+
 def corr_crit(corr_tmp, thresh):
 
     import pandas as pd

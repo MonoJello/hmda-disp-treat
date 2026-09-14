@@ -5,7 +5,8 @@ from .model import (
     plot_event_cat, 
     forward_select_auc, 
     plot_logit_marginal_effect,
-    corr_crit
+    corr_crit,
+    find_separation_variables
 )
 
 from .results import(
