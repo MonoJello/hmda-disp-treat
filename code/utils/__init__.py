@@ -9,7 +9,8 @@ from .model import (
     find_separation_variables,
     make_match_pair,
     ols_dummy_run,
-    logistic_woe_run
+    logistic_woe_run,
+    remove_dependent_columns
 )
 
 from .results import(

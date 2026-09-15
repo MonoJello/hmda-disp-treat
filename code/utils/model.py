@@ -2,10 +2,55 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
+def remove_dependent_columns(X, tolerance=None):
+
+    import numpy as np
+    import pandas as pd
+    import statsmodels.api as sm
+    from scipy.linalg import qr
+
+    X = X.copy()
+
+    # Ensure numeric values
+    X = X.apply(pd.to_numeric, errors="coerce")
+
+    # Replace invalid values
+    X = X.replace([np.inf, -np.inf], np.nan)
+
+    # Remove rows containing invalid values
+    X = X.dropna()
+
+    # Remove constant columns
+    constant_cols = X.columns[X.nunique() <= 1].tolist()
+    X = X.drop(columns=constant_cols)
+
+    if X.shape[1] == 0:
+        return X, constant_cols, []
+
+    matrix = X.to_numpy(dtype=float)
+
+    # QR decomposition with column pivoting
+    Q, R, pivot_order = qr(matrix, mode="economic", pivoting=True)
+
+    # Determine numerical rank
+    if tolerance is None:
+        tolerance = np.finfo(float).eps * max(matrix.shape) * abs(R[0, 0])
+
+    rank = np.sum(np.abs(np.diag(R)) > tolerance)
+
+    # Columns after the rank are linearly dependent
+    dependent_positions = pivot_order[rank:]
+    dependent_cols = X.columns[dependent_positions].tolist()
+
+    X_fixed = X.drop(columns=dependent_cols)
+
+    return X_fixed, constant_cols, dependent_cols
+
 def logistic_woe_run(df_tmp,group_i):
 
     from utils import model as mod
     import statsmodels.api as sm
+    from utils import model as mod
 
     # check separtion and remove those columns
     flagged_variables = mod.find_separation_variables(
@@ -38,6 +83,7 @@ def logistic_woe_run(df_tmp,group_i):
         y='denied',
         method="chi",
         min_samples=0.05,
+        empty_separate=True, #edit
         exclude= [group_i]   #['denied']
     )
 
@@ -65,9 +111,23 @@ def logistic_woe_run(df_tmp,group_i):
     col_order.remove(group_i)
     df_tmp_woe = df_tmp_woe[[group_i] + col_order]
 
-    X = sm.add_constant(df_tmp_woe.drop(columns='denied'))
+    # X = sm.add_constant(df_tmp_woe.drop(columns='denied'))
 
-    model = sm.Logit(y, X)
+    X = df_tmp_woe.drop(columns='denied')
+
+    # test and fix rank
+
+    X_fixed, constant_cols, dependent_cols = mod.remove_dependent_columns(X)
+
+    print("Removed constant columns:", constant_cols)
+    print("Removed dependent columns:", dependent_cols)
+
+    # Align y with rows remaining after cleaning X
+    y_fixed = y.loc[X_fixed.index]
+
+
+
+    model = sm.Logit(y_fixed, sm.add_constant(X_fixed))
     result = model.fit()
 
     print(result.summary())
@@ -154,7 +214,7 @@ def ols_dummy_run(df_tmp,group_i):
 
     df_tmp = qcut_numeric_columns(
         df_tmp,
-        n_bins=5,
+        n_bins=3,
         exclude_cols=["interest_rate", group_i]
     )
 
@@ -518,7 +578,15 @@ def make_match_pair(df_tmp, target_to_exclude,group_i):
 
     psm.logistic_ps(balance = True)
 
-    psm.kdtree_matched(matcher='propensity_logit', replacement=False, caliper=None, drop_unmatched=True)
+    # psm.kdtree_matched(matcher='propensity_logit', replacement=False, caliper=None, drop_unmatched=True)
+    # psm.kdtree_matched_12n(matcher='propensity_logit', how_many=1)
+    psm.kdtree_matched(
+        matcher="propensity_score",
+        replacement=True,
+        caliper=0.2,
+        drop_unmatched=True
+    )
+
 
     # psm.df_matched
 
