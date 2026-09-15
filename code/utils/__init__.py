@@ -17,7 +17,8 @@ from .results import(
     roc_plot,
     ks_plot,
     cumulative_event_rate_plot,
-    calibration_plot
+    calibration_plot,
+    save_summary
 )
 
 
