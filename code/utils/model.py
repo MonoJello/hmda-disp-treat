@@ -125,14 +125,15 @@ def logistic_woe_run(df_tmp,group_i):
     # Align y with rows remaining after cleaning X
     y_fixed = y.loc[X_fixed.index]
 
+    X_fixed = sm.add_constant(X_fixed)
 
 
-    model = sm.Logit(y_fixed, sm.add_constant(X_fixed))
+    model = sm.Logit(y_fixed, X_fixed)
     result = model.fit()
 
     print(result.summary())
 
-    return result
+    return result, X_fixed
 
 def ols_dummy_run(df_tmp,group_i):
     import numpy as np
@@ -295,7 +296,7 @@ def ols_dummy_run(df_tmp,group_i):
 
 
 
-
+    X = sm.add_constant(X)
 
 
     model = sm.OLS(y, X)
@@ -303,7 +304,7 @@ def ols_dummy_run(df_tmp,group_i):
 
     # print(result.summary())
 
-    return result
+    return result, X
 
 def find_separation_variables(
     df,
