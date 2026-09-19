@@ -1,3 +1,84 @@
+def save_summary(
+    summary_out, # summary table
+    res, # model summary object
+    step, # uw or price
+    model, # 0 or 1
+    # j, # outerseg
+    # i, # inner seg
+    # iii # test
+):
+
+    import pandas as pd
+
+    # making tmp summary table
+    tmp = pd.DataFrame(columns = [
+        'loan type',
+        'loan purpose', # loan purp
+        'step', # price or uw
+        'model', # 0 or 1
+        'protected basis',  # female 
+        'metric', # pval, coef, r2 **
+        'value' #**
+    ])
+
+
+
+    # save coef
+    tmp2 = pd.DataFrame({
+        "metric": 'param',
+        "value": [res.params.values[1]],
+    })
+
+    tmp = pd.concat([tmp, tmp2], axis=0, ignore_index=True)
+
+    # save p value
+    tmp2 = pd.DataFrame({
+        "metric": 'pval',
+        "value": [res.pvalues.values[1]],
+    })
+
+    tmp = pd.concat([tmp, tmp2], axis=0, ignore_index=True)
+
+
+    # save model fit
+
+    if step == 'price':
+
+
+        # ols
+        tmp2 = pd.DataFrame({
+            "metric": 'adj R2',
+            "value": [res.rsquared_adj],
+        })
+
+        tmp = pd.concat([tmp, tmp2], axis=0, ignore_index=True)
+
+
+    elif step == 'uw':
+
+        # logit
+        tmp2 = pd.DataFrame({
+            "metric": 'psu R2',
+            "value": [1 - (res.llf / res.llnull)],
+        })
+
+        tmp = pd.concat([tmp, tmp2], axis=0, ignore_index=True)
+
+
+
+    # save other groups for pivots
+    tmp['loan type'] = type_i
+    tmp['loan purpose'] = purp_i
+    tmp['protected basis'] = iii
+    tmp['step'] = step
+    tmp['model'] = model
+
+
+    summary_out = pd.concat([summary_out, tmp], axis=0, ignore_index=True)
+
+
+    return summary_out
+
 def roc_plot(
     df_1,
     df_2,
