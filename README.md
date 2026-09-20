@@ -21,7 +21,7 @@ I use application level data to shows how fair lending disparate treatment analy
 # Problem Statement
 
 
-Lenders are prohibited from making lending decisions based on protected basis. As part of adhering to regulatory requirements, lenders conduct *file reviews*. These are detailed examination of individual loan files to evaluate whether similarly situated applicants or borrowers were treated consistently and in compliance with fair lending requirements. However, given the volume of applications it is not possible or cost effective to compare every individual loan. In practice, institutions leverage regression analysis to do hypothesis tests on segments for each protected basis group. Generally, an effect must be larger than a predetermined magnitude and significant to identify potential risk. This regression analysis identifies *potential areas of risk* which are then looked at in more detail during a targeted *file review*.
+Lenders are prohibited from making lending decisions based on protected basis. As part of adhering to regulatory requirements, lenders conduct *file reviews*. These are detailed examination of individual loan files to evaluate whether similarly situated applicants or borrowers were treated consistently and in compliance with fair lending requirements. However, given the volume of applications it is not possible or cost effective to compare every individual loan. In practice, institutions leverage regression analysis to do hypothesis tests on segments for each protected basis group. Generally, an effect must be larger than a predetermined magnitude and significant to identify potential risk. This regression analysis shows how *potential areas of risk* are identified, which are then looked at in more detail during a targeted *file review*.
 
 
 The project aims to answer the following two questions.
@@ -41,9 +41,6 @@ I use Modified Loan Application Register (MLAR) data from the Consumer Financial
 
 Data originally contains 368,994 rows and 85 columns. Target values are 'interest rate' for pricing analysis and 'action taken' for underwriting analysis. Action taken identifies denied, booked, and unboked, which is the population of underwriting analysis. Pricing uses booked and unbooked since they both receive interest rates in the data.
 
-
-
-The dataset contains 7,043 customer records and 21 features.
 
 - **Target:** `interest rate` for pricing, `action taken` for underwriting
 - **Features:** demographics, consumer credit attributes, loan attributes
@@ -141,7 +138,7 @@ $$
 **Model 2**
 
 
-PSA: first we estimate a propensity score from the probability of *treatment*, in this case observing the PB. Then matching observations across treatment and control groups which have similar propensity scores. Having a similar propensity score means that they have similar covariates, the only difference then is that one is in the PB group and the other in the reference. In essence, we are making the observed PB rate random and it should not be explainable from covariates. This is what gives us the neater interpretation of unbiased treatment effect. 
+PSA: First we estimate a propensity score from the probability of *treatment*, in this case observing the PB. Then matching observations across treatment and control groups which have similar propensity scores. Having a similar propensity score means that they have similar covariates, the only difference then is that one is in the PB group and the other in the reference. In essence, we are making the observed PB rate random and it should not be explainable from covariates. This is what gives us the neater interpretation of unbiased treatment effect. 
 
 
 $$
@@ -209,8 +206,8 @@ While magnitude of coefficients doesn't change much identifying potential areas 
 
 
 - Unknown what the underwriting and pricing strategy really is for this (any) lender from public information. Having it would lead to better model specifications.
-- Limited data on consumer and loan attributes. One key example is not having consumer credit score, public data only has attributes such as LTV and DTI.
-- Simpler definitions of protected basis. Analysis conducted is valid although for a narrower population. More complicated analysis could be done on joint applicants, same sex applicants, mixed race applicants, etc. This would require more work on justifying how to derive these PB groups based on multiple characteristics.
+- Limited data on consumer and loan attributes. One key example is not having consumer credit score, public data only has attributes such as LTV and DTI. Having more information would lead to models better explaining outcome.
+- Simpler definitions of protected basis. Analysis conducted is valid although for a narrower population, single applicants. More complicated analysis could be done on joint applicants, same sex applicants, mixed race applicants, etc. This would require more work on justifying how to derive these PB groups based on multiple characteristics.
 
 
 
