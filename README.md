@@ -1,6 +1,6 @@
 # Mortgage Disparate Treatment Fair Lending Analysis
 
-Test for potential areas of risk and includes Propensity Score Analysis as a way to estimate bias in estimates.
+Test for potential areas of risk and includes Propensity Score Analysis as a way to quantify bias in estimates.
 
 
 
