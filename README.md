@@ -46,8 +46,7 @@ Data originally contains 368,994 rows and 85 columns. Target values are 'interes
 The dataset contains 7,043 customer records and 21 features.
 
 - **Target:** `interest rate` for pricing, `action taken` for underwriting
-- **Numerical features:** demographics, consumer credit attributes, loan attributes
-<!-- - **Categorical features:** contract type, payment method, internet service -->
+- **Features:** demographics, consumer credit attributes, loan attributes
 - **Source:** Consumer Financial Protection Bureau (CFPB)
 
 
