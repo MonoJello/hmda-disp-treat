@@ -113,11 +113,11 @@ The following regressions are ran for both underwriting and pricing data. While 
 **Model 0**
 
 
-$$
+```math
 \Pr(denial_i = 1 \mid PB_i)
 =
 \beta_0 + \beta_1 PB_i
-$$
+```
 
 
 
@@ -126,11 +126,11 @@ $$
 **Model 1**
 
 
-$$
+```math
 \Pr(denial_i = 1 \mid PB_i, \mathbf{X}_i)
 =
 \beta_0 + \beta_1 PB_i + \mathbf{X}_i^\top\boldsymbol{\beta}
-$$
+```
 
 
 
@@ -141,22 +141,22 @@ $$
 PSA: First we estimate a propensity score from the probability of *treatment*, in this case observing the PB. Then matching observations across treatment and control groups which have similar propensity scores. Having a similar propensity score means that they have similar covariates, the only difference then is that one is in the PB group and the other in the reference. In essence, we are making the observed PB rate random and it should not be explainable from covariates. This is what gives us the neater interpretation of unbiased treatment effect. 
 
 
-$$
+```math
 \Pr(PB_i = 1 \mid \mathbf{X}_i)
 =
 \beta_0 +  \mathbf{X}_i^\top\boldsymbol{\beta}
-$$
+```
 
 
 The matched pair dataset is then used to run the same equation as in model 1. However, this time the interpretation of the coefficient for PB is assumed to be unbiased.
 
 
 
-$$
+```math
 \Pr(denial_i = 1 \mid PB_i, \mathbf{X}_i)
 =
 \beta_0 + \beta_1 PB_i + \mathbf{X}_i^\top\boldsymbol{\beta}
-$$
+```
 
 
 
